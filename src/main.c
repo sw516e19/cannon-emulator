@@ -38,12 +38,18 @@ typedef struct {
  */
 typedef struct {
     pixycam2_response_header_t header; //!< \~English headerpackage
-    pixycam2_block_t* blocks; //!< \~English block-pointer
+    pixycam2_block_t blocks[5]; //!< \~English block-pointer. 5 objects can be tracked at a time.
 
 } pixycam2_block_response_t;
 
 int should_shoot = 0;
 int new_data = 0;
+pixycam2_block_response_t sample_block_response;
+int tick_count = 0;
+
+unsigned long long first_block_time;
+unsigned long long current_block_time;
+
 
 // The task responsible for detecting the falling object using the pixycam
 int detect_task()
@@ -51,7 +57,29 @@ int detect_task()
     // Fake sleep simulating grabbing pixycam data. Worst case is 17 miliseconds
     Sleep(17);
 
-    // TODO: ADD SAMPLE PIXYCAM BLOCK DATA
+    // Simulate blocks of the falling object
+    if (tick_count == 3)
+    {
+        first_block_time = GetTickCount64();
+
+
+        found_block(100, 207);
+    }
+
+
+    if (tick_count == 4)
+    {
+        found_block(100, 165);
+    }
+
+
+    if (tick_count == 5)
+    {
+        found_block(100, 132);
+    }
+
+
+    return 0;
 }
 
 // The task for calculating distances using the retrieved pixycam data
@@ -60,6 +88,8 @@ int calculate_task()
     // If no new pixycam data, just skip
     if (new_data == 0)
         return 0;
+
+    new_data = 0;
 
     return 0;
 }
@@ -72,13 +102,42 @@ int shoot_task()
         return 0;
 
     // SHOOT!
+    Sleep(50);
+
+    return 0;
+}
+
+// Helper method for signifying a block was found
+int found_block(uint16_t x_center, uint16_t y_center)
+{
+    // Set that there has been found new data
+    new_data = 1;
+
+    // Set the block header
+    sample_block_response.header.checksum = 0;
+    sample_block_response.header.packet_type = 0;
+    sample_block_response.header.payload_length = 0;
+    sample_block_response.header.sync = 0;
+
+    // Set the block data
+    sample_block_response.blocks[0].age = 0;
+    sample_block_response.blocks[0].color_angle = 0;
+    sample_block_response.blocks[0].height = 0;
+    sample_block_response.blocks[0].signature = 0;
+    sample_block_response.blocks[0].tracking_index = 0;
+    sample_block_response.blocks[0].width = 0;
+    sample_block_response.blocks[0].x_center = x_center;
+    sample_block_response.blocks[0].y_center = y_center;
+
+    printf("%d\n", sample_block_response.blocks[0].y_center);
+
+    return 0;
 }
 
 
  
 int main(int argc, char *argv[])
 {
-    int tick_count = 0;
     while (1)
     {
         detect_task();
@@ -87,7 +146,7 @@ int main(int argc, char *argv[])
         Sleep(10);
 
         tick_count++;
-        printf("Tick %d\n", tick_count);
+        //printf("Tick %d\n", tick_count);
     }
     return 0;
 }
